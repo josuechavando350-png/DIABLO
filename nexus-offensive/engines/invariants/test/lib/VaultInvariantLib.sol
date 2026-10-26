@@ -14,6 +14,12 @@ library VaultInvariantLib {
         return IERC20(v.asset()).balanceOf(address(v)) >= v.totalAssets();
     }
 
+    /// V4 · Contabilidad estricta: activos == shares (1:1, sin donaciones no
+    ///      contabilizadas). Aplica a vaults de relación fija / con flash loans.
+    function strictAccounting(IVault4626 v) internal view returns (bool) {
+        return v.totalAssets() == v.totalSupply();
+    }
+
     /// V3 · Redenciones solventes: la suma de lo redimible por todos nunca
     ///      excede los activos (el redondeo favorece al vault, no al usuario).
     function redemptionsSolvent(IVault4626 v, address[] memory users) internal view returns (bool) {

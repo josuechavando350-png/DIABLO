@@ -15,7 +15,11 @@ Todo es material **educativo de juguete**, no producción.
 
 ## El catálogo de invariantes (biblioteca viva)
 
-4 familias · 12 invariantes · 5 PoCs. Todas verdes (`forge test`).
+6 familias · 16 invariantes · 11 PoCs. Todas verdes (`forge test`).
+
+Las familias **Flash Loan** y **Oráculo**, y la invariante **V4**, se agregaron
+para cerrar los huecos que reveló el entrenamiento contra Damn Vulnerable DeFi
+(ver `../../training/dvd/COBERTURA.md`).
 
 ### 🟣 AMM — producto constante (tipo Uniswap V2) · interfaz `IAmm`
 
@@ -40,6 +44,7 @@ Todo es material **educativo de juguete**, no producción.
 | **V1** | `balance(asset) ≥ totalAssets()` | El vault custodia al menos lo que contabiliza (solvencia base). | Minteo de shares sin recibir activos; pérdida de activos. | — |
 | **V2** | depósito de `x` → shares redimibles por `≈ x` | **Justicia al depositante / anti-inflación.** Si un depósito recibe ~0 shares, el depositante pierde sus fondos. | **Inflación de primer depositante** (sin virtual/dead shares; `totalAssets` cuenta donaciones; redondeo que perjudica al usuario). | ✅ `test_PoC_vault_inflation_steals_deposit` (+ `test_toyVault_resists_inflation`) |
 | **V3** | `Σ convertToAssets(shares_u) ≤ totalAssets` | Todas las redenciones son pagables: el redondeo favorece al vault, nunca crea valor de la nada. | **Redondeo direccional incorrecto** (a favor del usuario). | — |
+| **V4** | `totalAssets() == totalSupply()` | Contabilidad estricta 1:1 (sin tokens no contabilizados). Para vaults de relación fija / con flash loans, una donación rompe la igualdad e inutiliza el contrato. | **Donación directa que rompe la contabilidad** (DoS, estilo unstoppable). | ✅ `test_PoC_V4_donation_breaks_strict_accounting` |
 
 ### 🟠 Staking / rewards · interfaz `IStaking`
 
@@ -48,6 +53,21 @@ Todo es material **educativo de juguete**, no producción.
 | **S1** | `claimed + Σ earned(u) ≤ funded` | **Las recompensas repartidas nunca exceden las emitidas.** Es la regla central de un staking: no se puede pagar más de lo fondeado. | **Recompensa no reiniciada** tras el pago (doble claim), tasas sin fondeo. | ✅ `test_PoC_staking_double_claim_exceeds_funded` |
 | **S2** | `balance(reward) ≥ Σ earned(u)` | El bote de rewards cubre lo pendiente de todos (solvencia de recompensas). | Drenaje del bote por doble claim; contabilidad de rewards rota. | — |
 | **S3** | `balance(stake) ≥ totalStaked` | El contrato custodia al menos lo apostado (no se puede perder el principal de los stakers). | Contabilidad de stake desincronizada del balance. | — |
+
+### ⚡ Flash Loan / control de acceso · interfaz `IFlashLoanPool`
+
+| ID | Invariante | Qué vigila y por qué | Clase de bug que la rompe | PoC |
+|----|------------|----------------------|---------------------------|-----|
+| **FL1** | tras `flashLoan`: `balance ≥ balanceBefore` | **Conservación**: todo flash loan debe repagarse; si no, el pool pierde fondos. | Falta la verificación de repago. | ✅ `test_PoC_FL1_unrepaid_breaks_conservation` |
+| **FL2** | `token.allowance(pool, tercero) == 0` | **Sin llamadas/allowance arbitrarias**: el pool nunca ejecuta datos del atacante ni aprueba sus fondos a terceros. | Llamada externa arbitraria (truster). | ✅ `test_PoC_FL2_arbitrary_call_breaks_no_allowance` |
+| **FL3** | saldo de una cuenta solo se mueve con su consentimiento | **Autorización de movimientos**: un fee/retiro no puede imputarse a quien no inició la acción. | Falta de autorización del iniciador (naive-receiver). | ✅ `test_PoC_FL3_unauthorized_loans_drain_receiver` |
+| **FL4** | `balanceHeld() ≥ totalDeposits()` | **Solvencia bajo reentrada**: el pool custodia al menos lo que debe, incluso dentro de callbacks. | Repago confundido con depósito (side-entrance). | ✅ `test_PoC_FL4_side_entrance_breaks_solvency` |
+
+### 🔮 Oráculo / Precio · interfaz `IOracleLending`
+
+| ID | Invariante | Qué vigila y por qué | Clase de bug que la rompe | PoC |
+|----|------------|----------------------|---------------------------|-----|
+| **O1** | `depositRequired(x) ≥ x · precioJusto · 2` | **Precio resistente a manipulación**: toda valuación económica usa un precio no manipulable en una tx (TWAP/snapshot), nunca el spot de un AMM. | Oráculo de precio spot manipulable (puppet). | ✅ `test_PoC_oracle_spot_manipulation_breaks_collateral` |
 
 ---
 

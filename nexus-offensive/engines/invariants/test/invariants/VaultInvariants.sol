@@ -30,4 +30,11 @@ abstract contract VaultInvariants is StdInvariant, Test {
             "V3: redenciones por encima de los activos"
         );
     }
+
+    /// V4 · Contabilidad estricta: activos == shares (sin tokens no
+    ///      contabilizados). Para vaults 1:1 / que ofrecen flash loans, una
+    ///      donación directa rompe la igualdad y puede inutilizar el contrato.
+    function invariant_vault_strictAccounting() public view {
+        assertTrue(VaultInvariantLib.strictAccounting(vault), "V4: activos != shares (donacion no contabilizada)");
+    }
 }

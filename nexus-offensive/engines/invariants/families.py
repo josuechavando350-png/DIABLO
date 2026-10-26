@@ -58,10 +58,14 @@ FAMILIES = [
              "desc": "Ningún depósito recibe shares injustas (anti-inflación)."},
             {"id": "V3", "test": "invariant_vault_redemptionsSolvent",
              "desc": "Suma de lo redimible por todos nunca excede los activos."},
+            {"id": "V4", "test": "invariant_vault_strictAccounting",
+             "desc": "Contabilidad estricta: activos == shares (sin donaciones no contabilizadas)."},
         ],
         "exploits": [
             {"test": "test_PoC_vault_inflation_steals_deposit", "breaks": "V2",
              "desc": "Inflación de primer depositante: la víctima recibe 0 shares."},
+            {"test": "test_PoC_V4_donation_breaks_strict_accounting", "breaks": "V4",
+             "desc": "Donación directa rompe activos==shares (estilo unstoppable)."},
         ],
     },
     {
@@ -79,6 +83,40 @@ FAMILIES = [
         "exploits": [
             {"test": "test_PoC_staking_double_claim_exceeds_funded", "breaks": "S1",
              "desc": "claim no resetea la recompensa → doble claim excede lo emitido."},
+        ],
+    },
+    {
+        "name": "FlashLoan",
+        "interface": "IFlashLoanPool",
+        "invariant_suite": "ToyFlashLoanInvariantTest",
+        "invariants": [
+            {"id": "FL1", "test": "invariant_flashloan_conservation",
+             "desc": "Conservación: tras un flash loan el balance no baja (se repagó)."},
+            {"id": "FL4", "test": "invariant_flashloan_solvency",
+             "desc": "Solvencia bajo reentrada: balance custodiado >= depósitos."},
+        ],
+        "exploits": [
+            {"test": "test_PoC_FL1_unrepaid_breaks_conservation", "breaks": "FL1",
+             "desc": "Flash loan sin verificación de repago drena el pool."},
+            {"test": "test_PoC_FL2_arbitrary_call_breaks_no_allowance", "breaks": "FL2",
+             "desc": "Llamada arbitraria: el pool se auto-aprueba al atacante (truster)."},
+            {"test": "test_PoC_FL3_unauthorized_loans_drain_receiver", "breaks": "FL3",
+             "desc": "Préstamos no autorizados vacían al receptor vía fees (naive-receiver)."},
+            {"test": "test_PoC_FL4_side_entrance_breaks_solvency", "breaks": "FL4",
+             "desc": "Repagar depositando acredita saldo y vacía el pool (side-entrance)."},
+        ],
+    },
+    {
+        "name": "Oracle",
+        "interface": "IOracleLending",
+        "invariant_suite": "ToyOracleInvariantTest",
+        "invariants": [
+            {"id": "O1", "test": "invariant_oracle_fairCollateral",
+             "desc": "Colateral valuado con precio resistente a manipulación (TWAP, no spot)."},
+        ],
+        "exploits": [
+            {"test": "test_PoC_oracle_spot_manipulation_breaks_collateral", "breaks": "O1",
+             "desc": "Manipular el spot del AMM desploma el colateral exigido (puppet)."},
         ],
     },
 ]
