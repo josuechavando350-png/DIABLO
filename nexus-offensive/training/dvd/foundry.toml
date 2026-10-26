@@ -1,0 +1,16 @@
+# NEXUS Offensive · training/dvd — Damn Vulnerable DeFi (local, educativo)
+[profile.default]
+src = "src"
+out = "out"
+test = "test"
+libs = ["lib"]
+solc_version = "0.8.25"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+evm_version = "cancun"
+fs_permissions = [
+    { access = "read", path = "./builds/uniswap/" },
+    { access = "read", path = "./test/the-rewarder/dvt-distribution.json" },
+    { access = "read", path = "./test/the-rewarder/weth-distribution.json" },
+]
