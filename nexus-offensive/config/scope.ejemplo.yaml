@@ -1,0 +1,36 @@
+# NEXUS Offensive · scope de ejemplo (Capa 0)
+#
+# Copia este archivo a config/scope.<programa>.yaml y pégale el alcance
+# EXACTO publicado por el programa de bug bounty, al pie de la letra.
+#
+# Reglas de la jaula:
+#   - default-deny: lo que no esté aquí en in_scope NO existe para el sistema.
+#   - OUT gana sobre IN siempre: si algo cae en out_scope, se deniega aunque
+#     también encaje en un wildcard de in_scope.
+#   - "*.x.com" cubre a.x.com y a.b.x.com, pero NO x.com a secas.
+
+program: ejemplo-immunefi-program
+
+in_scope:
+  # Dominios / subdominios del programa
+  - "*.example.com"          # cualquier subdominio: app.example.com, a.b.example.com
+  - "app.example.com"        # host exacto (redundante con el wildcard, a modo de ejemplo)
+  - "api.example.com"
+  # Rangos de red autorizados
+  - "10.0.0.0/24"
+  - "2001:db8::/32"
+  # Contratos Web3 in-scope (dirección exacta; el nicho real del proyecto)
+  - "0x1111111111111111111111111111111111111111"
+
+out_scope:
+  # OUT siempre gana — aunque encajen en un wildcard de arriba
+  - "admin.example.com"
+  - "*.internal.example.com"
+  - "10.0.0.5"               # host concreto excluido dentro del /24 permitido
+
+# Rate limit que obedece el programa (peticiones por segundo)
+rps: 2.0
+
+# Overrides por host (opcional): algunos endpoints piden ir más despacio
+rps_per_host:
+  api.example.com: 1.0
