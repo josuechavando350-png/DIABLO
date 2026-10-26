@@ -1,0 +1,6 @@
+# Artefactos de compilación y ejecución de Foundry
+out/
+cache/
+broadcast/
+# Bitácora de validación (se regenera en cada corrida)
+validation-audit.log

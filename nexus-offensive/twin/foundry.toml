@@ -1,0 +1,17 @@
+# NEXUS Offensive · twin/ — fork-validador (corte vertical mínimo)
+[profile.default]
+src = "src"
+out = "out"
+test = "test"
+libs = ["lib"]
+optimizer = true
+optimizer_runs = 200
+solc_version = "0.8.24"
+
+# Fuzzing con estado para los tests de invariante.
+[invariant]
+runs = 256
+depth = 32
+# El handler honesto puede revertir (p.ej. withdraw sin saldo); eso no es un
+# fallo del invariante, solo una llamada inválida que se descarta.
+fail_on_revert = false
