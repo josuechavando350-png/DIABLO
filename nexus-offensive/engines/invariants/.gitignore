@@ -1,0 +1,7 @@
+# Artefactos de Foundry
+out/
+cache/
+broadcast/
+# Python
+__pycache__/
+*.pyc
