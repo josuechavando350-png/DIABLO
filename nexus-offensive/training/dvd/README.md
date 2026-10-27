@@ -11,7 +11,7 @@ Corre **100% local**, sin red real ni direcciones de producción.
 > es entrenamiento/validación del motor contra bugs reales, y un **reporte de
 > huecos** (`COBERTURA.md`) de qué le falta al catálogo.
 
-## Los 9 retos resueltos (cubren las familias del motor)
+## Los 15 retos resueltos (cubren las familias del motor)
 
 | Reto | Familia | Invariante | Catálogo |
 |------|---------|-----------|----------|
@@ -24,8 +24,16 @@ Corre **100% local**, sin red real ni direcciones de producción.
 | selfie | Flash loan / gobernanza | quórum no alcanzable con voto prestado | 🟢 cubierto |
 | abi-smuggling | Control de acceso | FL3 selector ejecutado == permiso | 🟢 cubierto |
 | compromised | Oráculo / Precio | O2 mediana robusta ante fuentes comprometidas | 🟢 cubierto |
+| puppet-v2 | Oráculo / Precio | O1 precio resistente (Uniswap V2) | 🟢 cubierto |
+| free-rider | Marketplace / fondos | comprar cuesta al comprador | 🟡 relacionado FL |
+| shards | Marketplace / redondeo | reembolso ≤ pagado | 🟡 relacionado V3 |
+| climber | Control de acceso / timelock | no ejecuta sin op agendada | 🟢 cubierto |
+| withdrawal | Control de acceso / puente | retiro mueve sus fondos o ninguno | 🟢 cubierto |
+| backdoor | Control de acceso / init | init no otorga permisos a terceros | 🟢 cubierto |
 
-Los huecos que descubrió la primera tanda ya están **cerrados en el motor**
+**15 de 18 retos resueltos.** Faltan: wallet-mining (diferido, el más
+intrincado) y puppet-v3 / curvy-puppet (fuera de alcance, requieren fork de
+mainnet). Los huecos que descubrió la primera tanda ya están **cerrados en el motor**
 (familias Flash Loan y Oráculo + invariante V4). El análisis completo de
 cobertura, el mapa reto→familia→invariante y el estado de los retos restantes
 (2 fuera de alcance por requerir fork de mainnet, 7 diferidos) están en
