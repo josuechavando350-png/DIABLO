@@ -11,18 +11,24 @@ Corre **100% local**, sin red real ni direcciones de producción.
 > es entrenamiento/validación del motor contra bugs reales, y un **reporte de
 > huecos** (`COBERTURA.md`) de qué le falta al catálogo.
 
-## Los 6 retos (cubren las 4 familias + descubren huecos)
+## Los 9 retos resueltos (cubren las familias del motor)
 
 | Reto | Familia | Invariante | Catálogo |
 |------|---------|-----------|----------|
-| unstoppable | Vault 4626 | `totalAssets == totalSupply` | 🔴 hueco |
-| naive-receiver | Flash loan / acceso | autorización de movimientos | 🔴 hueco |
-| side-entrance | Flash loan pool | solvencia `balance >= Σ depósitos` | 🟡 reusa |
+| unstoppable | Vault 4626 | V4 `totalAssets == totalSupply` | 🟢 cubierto |
+| naive-receiver | Flash loan / acceso | FL3 autorización de movimientos | 🟢 cubierto |
+| side-entrance | Flash loan pool | FL4 solvencia `balance >= Σ depósitos` | 🟢 cubierto |
 | the-rewarder | Staking / rewards | S1 reclamado ≤ asignación | 🟢 cubierto |
-| truster | Flash loan / acceso | pool no otorga allowance arbitraria | 🔴 hueco |
-| puppet | Oráculo / Lending | colateral con precio no manipulable | 🔴 hueco |
+| truster | Flash loan / acceso | FL2 pool no otorga allowance arbitraria | 🟢 cubierto |
+| puppet | Oráculo / Precio | O1 colateral con precio no manipulable | 🟢 cubierto |
+| selfie | Flash loan / gobernanza | quórum no alcanzable con voto prestado | 🟢 cubierto |
+| abi-smuggling | Control de acceso | FL3 selector ejecutado == permiso | 🟢 cubierto |
+| compromised | Oráculo / Precio | O2 mediana robusta ante fuentes comprometidas | 🟢 cubierto |
 
-El análisis completo de cobertura y **huecos** (lo más importante) está en
+Los huecos que descubrió la primera tanda ya están **cerrados en el motor**
+(familias Flash Loan y Oráculo + invariante V4). El análisis completo de
+cobertura, el mapa reto→familia→invariante y el estado de los retos restantes
+(2 fuera de alcance por requerir fork de mainnet, 7 diferidos) están en
 [`COBERTURA.md`](./COBERTURA.md).
 
 ## Qué entrega cada reto

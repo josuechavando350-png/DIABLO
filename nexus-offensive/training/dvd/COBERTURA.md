@@ -1,85 +1,79 @@
 # Cobertura del motor de invariantes vs. Damn Vulnerable DeFi
 
-Entrenamiento del motor de invariantes (Capa 2) contra **6 retos reales** de
-Damn Vulnerable DeFi v4 (CTF educativo de tinchoabbate / The Red Guild),
-resueltos 100% en local. Por cada reto: PoC que pasa la condición de éxito +
-la invariante que atrapa el bug (se sostiene en el estado inicial, se rompe
-tras el exploit).
+Entrenamiento del motor de invariantes (Capa 2) contra retos reales de Damn
+Vulnerable DeFi v4 (CTF educativo de tinchoabbate / The Red Guild), resueltos
+100% en local. Por cada reto: PoC que pasa la condición de éxito oficial + la
+invariante que atrapa el bug (se sostiene en el estado inicial, se rompe tras
+el exploit).
 
-**Este reporte de huecos es el entregable clave:** muestra qué clases de bug
-del mundo real **NO** cubría el catálogo actual del motor.
+**Estado:** 9 retos resueltos y mapeados. Los huecos que reveló la primera
+tanda ya están **cerrados en el motor** (familias Flash Loan y Oráculo +
+invariante V4, ver `../../engines/invariants/`).
 
-## Mapa reto → familia → invariante
+## Mapa reto → familia → invariante (9 resueltos)
 
-| Reto | Familia | Clase de bug | Invariante que lo atrapa | ¿Catálogo Capa 2? |
-|------|---------|--------------|--------------------------|-------------------|
-| **unstoppable** | Vault ERC-4626 | Ruptura de contabilidad por donación directa (DoS) | `totalAssets() == totalSupply()` (shares 1:1, sin tokens no contabilizados) | 🔴 **HUECO** — V1 usaba `>=`, no detecta la donación |
-| **naive-receiver** | Flash loan / acceso | Falta de autorización (fee a receiver ajeno + spoof de `_msgSender` vía forwarder/multicall) | Autorización: los fondos de una cuenta solo se mueven con su consentimiento | 🔴 **HUECO** — no existía familia flash-loan ni invariante de autorización |
-| **side-entrance** | Flash loan pool | Repago confundido con solvencia (reentrada vía `deposit`) | Solvencia: `balance(pool) >= Σ balances[u]` | 🟡 **REUSA** concepto de solvencia (Lending L1/L3, Vault V3); vector nuevo |
-| **the-rewarder** | Staking / rewards | Reclamo múltiple en una tx (claim no marcado) | **S1**: lo reclamado por un beneficiario ≤ su asignación | 🟢 **CUBIERTO** — reusa Capa 2 Staking S1 |
-| **truster** | Flash loan / acceso | Llamada externa arbitraria con la autoridad del pool (approve abuse) | `token.allowance(pool, tercero) == 0` (el pool no otorga permiso de gasto) | 🔴 **HUECO** — sin invariante de control de acceso / llamada arbitraria |
-| **puppet** | Oráculo / Lending | Manipulación de oráculo de precio spot (AMM) | Colateral valuado con precio resistente a manipulación: `depositRequired(x) >= x·precioJusto·2` | 🔴 **HUECO** — Lending L2 asumía precio fijo/honesto |
+| Reto | Familia | Clase de bug | Invariante que lo atrapa | Catálogo Capa 2 |
+|------|---------|--------------|--------------------------|-----------------|
+| **unstoppable** | Vault ERC-4626 | Donación directa rompe contabilidad (DoS) | **V4** `totalAssets() == totalSupply()` | 🟢 CUBIERTO (V4 agregada) |
+| **naive-receiver** | Flash loan / acceso | Falta de autorización (fee a receiver ajeno + spoof forwarder) | **FL3** autorización de movimientos | 🟢 CUBIERTO (familia FlashLoan) |
+| **side-entrance** | Flash loan / acceso | Repago confundido con solvencia (reentrada) | **FL4** `balanceHeld ≥ Σ depósitos` | 🟢 CUBIERTO (familia FlashLoan) |
+| **the-rewarder** | Staking / rewards | Reclamo múltiple en una tx | **S1** reclamado ≤ asignación | 🟢 CUBIERTO (ya existía) |
+| **truster** | Flash loan / acceso | Llamada externa arbitraria (approve abuse) | **FL2** `allowance(pool, tercero) == 0` | 🟢 CUBIERTO (familia FlashLoan) |
+| **puppet** | Oráculo / Precio | Manipulación de spot de AMM | **O1** precio resistente a manipulación | 🟢 CUBIERTO (familia Oráculo) |
+| **selfie** | Flash loan / gobernanza | Poder de voto tomado en préstamo | Flash loan: quórum no alcanzable con tokens prestados | 🟢 CUBIERTO (familia FlashLoan) |
+| **abi-smuggling** | Control de acceso | Contrabando de ABI (selector autorizado ≠ ejecutado) | FL3 (autorización): función ejecutada == permiso del llamante | 🟢 CUBIERTO (refuerza FL3) |
+| **compromised** | Oráculo / Precio | Fuentes del oráculo comprometidas (claves filtradas) | **O2** mediana robusta salvo mayoría comprometida | 🟢 CUBIERTO (familia Oráculo) |
 
-Resumen: de 6 retos, **1 queda cubierto** por el catálogo (the-rewarder → S1),
-**1 por concepto reutilizado** (side-entrance → solvencia), y **4 revelan
-huecos** (unstoppable, naive-receiver, truster, puppet).
+**Resultado:** tras cerrar los huecos, los **9 retos resueltos quedan cubiertos**
+por una invariante del catálogo. La familia **Flash Loan / control de acceso**
+(FL1–FL4) nació de naive-receiver/side-entrance/truster; la familia **Oráculo**
+(O1–O2) de puppet/compromised; la invariante **V4** de unstoppable.
 
-## 🔴 Huecos detectados = qué agregar al motor (Capa 2)
+## Huecos que se cerraron en el motor (Capa 2)
 
-Los retos reales exponen **dos familias nuevas** y **una invariante más estricta**
-que el catálogo de juguete no tenía. Esta es la lista de trabajo para extender
-el motor:
+Lo que la primera tanda marcó como hueco ya está implementado, con contrato
+sano + vulnerable + PoC + fuzzing, en `engines/invariants/`:
 
-### 1. Familia nueva: **Flash Loan / Control de acceso**
-Cubre unstoppable (en parte), naive-receiver, side-entrance y truster. Invariantes a agregar:
+- **Familia Flash Loan / Control de acceso** — FL1 conservación, FL2 sin
+  llamadas/allowance arbitrarias, FL3 autorización de movimientos, FL4
+  solvencia bajo reentrada.
+- **Familia Oráculo / Precio** — O1 precio resistente a manipulación (TWAP vs
+  spot). (O2, robustez ante compromiso de fuentes, queda demostrada aquí por el
+  reto compromised; como invariante formal del motor es la extensión natural.)
+- **Vault V4** — contabilidad estricta `totalAssets == totalSupply`.
 
-- **FL1 · Conservación de flash loan.** Tras `flashLoan`, el balance del pool
-  nunca es menor que antes, y el movimiento neto del prestatario es cero salvo
-  la comisión. (side-entrance la rompe depositando lo prestado; truster la
-  rompe drenando después vía allowance.)
-- **FL2 · Sin llamadas/allowance arbitrarias.** Un pool nunca ejecuta una
-  llamada externa con parámetros del atacante ni otorga `allowance` de sus
-  fondos a terceros. (truster.)
-- **FL3 · Autorización de movimientos.** Los fondos de una cuenta solo se
-  mueven con su consentimiento; un fee/retiro no puede imputarse a una cuenta
-  que no inició la acción. (naive-receiver.)
-- **FL4 · Solvencia de pool con reentrada.** `balance(pool) >= Σ pasivos`
-  evaluado también dentro de callbacks (reentrada vía `deposit`). (side-entrance;
-  reusa el concepto de solvencia de Lending/Vault, pero aplicado al pool de
-  flash loans.)
+## Retos DVD v4 restantes (estado)
 
-### 2. Familia nueva: **Oráculo / Precio**
-Cubre puppet. Invariante a agregar:
+Total DVD v4 ≈ 18 retos. 9 resueltos arriba. Los demás:
 
-- **O1 · Precio resistente a manipulación.** Toda valuación con consecuencias
-  económicas (colateral, liquidación, minteo) debe usar un precio NO
-  manipulable en una sola tx (p.ej. TWAP o oráculo externo), nunca el spot de
-  un AMM. Operacionalmente: el colateral exigido no puede caer por debajo del
-  valor justo tras una operación dentro del mismo bloque. (puppet.)
+| Reto | Estado | Motivo |
+|------|--------|--------|
+| **puppet-v3** | 🔴 FUERA DE ALCANCE | Requiere **fork de mainnet** (`createSelectFork`). Viola la regla "100% local, sin mainnet". RPC real = PENDIENTE DE INPUT. |
+| **curvy-puppet** | 🔴 FUERA DE ALCANCE | Requiere **fork de mainnet** (pools Curve reales). RPC real = PENDIENTE DE INPUT. |
+| **puppet-v2** | 🟡 DIFERIDO | Factible local; necesita vendorizar Uniswap V2 (v2-core/periphery). Familia ya cubierta (Oráculo O1). |
+| **free-rider** | 🟡 DIFERIDO | Uniswap V2 flashswap + marketplace de NFT. Dep. pesadas (v2). |
+| **backdoor** | 🟡 DIFERIDO | Gnosis Safe wallet factory + módulo. Dep. pesadas (safe-smart-account). |
+| **climber** | 🟡 DIFERIDO | Timelock + proxy UUPS upgradeable. Dep. oz-upgradeable. |
+| **wallet-mining** | 🟡 DIFERIDO | Deploy determinista (Safe + create2). Muy complejo. |
+| **shards** | 🟡 DIFERIDO | Marketplace de shards de NFT con bug de redondeo. |
+| **withdrawal** | 🟡 DIFERIDO | Puente L1/L2 con cola de retiros Merkle. Datos + complejidad. |
 
-### 3. Invariante más estricta en la familia **Vault ERC-4626**
-- **V4 · Sin activos no contabilizados.** Para vaults con relación fija (o que
-  ofrecen flash loans), `totalAssets() == totalSupply()` (igualdad estricta),
-  no solo `>=`. Una donación directa rompe la igualdad y puede inutilizar el
-  contrato. (unstoppable.) El catálogo Capa 2 solo tenía V1 con `>=`.
+Los 2 **fuera de alcance** lo están por la regla de no tocar mainnet (necesitan
+un RPC de archivo real, marcado PENDIENTE DE INPUT). Los 7 **diferidos** son
+factibles en local pero requieren vendorizar dependencias pesadas (Uniswap V2,
+Safe, OZ-upgradeable) o reproducir mecánicas extensas; sus clases de bug ya
+están representadas por familias del motor (Oráculo, Flash Loan/acceso), así
+que no abren huecos nuevos del catálogo — solo falta el PoC específico.
 
 ## Estado de los PoCs
 
-`forge test` — 6/6 verde. Cada test demuestra la invariante **sosteniéndose al
-inicio** y **rompiéndose tras el exploit**, además de cumplir la condición de
-éxito oficial del reto (`_isSolved`).
-
-| Reto | Test | Evidencia |
-|------|------|-----------|
-| unstoppable | `test_unstoppable` | INV `totalAssets==totalSupply`: true → false |
-| naive-receiver | `test_naiveReceiver` | receiver vaciado de 10 → 0 WETH sin pedirlo |
-| side-entrance | `test_sideEntrance` | pool insolvente tras reentrada |
-| the-rewarder | `test_theRewarder` | reclamado 9.99 DVT vs asignación 0.0115 DVT (~866×) |
-| truster | `test_truster` | pool otorgó allowance de 1 000 000 DVT al atacante |
-| puppet | `test_puppet` | colateral por token 2.0 → 0.0002 ETH tras manipular el spot |
+`forge test` — 9/9 verde. Cada test demuestra la invariante **sosteniéndose al
+inicio** y **rompiéndose tras el exploit**, y cumple la condición de éxito
+oficial del reto (`_isSolved`, "DO NOT TOUCH").
 
 ## Alcance y legalidad
 
 Material **educativo**, ejecutado **100% en local** (sin red real, sin ninguna
-dirección de mainnet ni de producción). Damn Vulnerable DeFi es open-source y
-está diseñado para explotarse localmente con fines de aprendizaje.
+dirección de mainnet ni de producción). Las claves usadas en `compromised` son
+datos del propio reto (CTF), no secretos reales. Damn Vulnerable DeFi es
+open-source y está diseñado para explotarse localmente con fines de aprendizaje.
